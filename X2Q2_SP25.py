@@ -1,82 +1,70 @@
-# region imports
 from scipy.integrate import solve_ivp
-from math import sin
-import math
 import numpy as np
-from matplotlib import pyplot as plt
-# endregion
-#region class definitions
+import matplotlib.pyplot as plt
+from math import sin
+
+# Define the circuit class
 class circuit():
-    def __init__(self, R=20, L=20, C=0.05, A=20, w=20, p=0):
-        '''
-        #JES MISSING DOCSTRING
-        :param R: #JES MISSING argument descriptions (give units)
-        :param L:
-        :param C:
-        :param A:
-        :param w:
-        :param p:
-        '''
-        #region attributes
-        #endregion
+    def __init__(self, R=10, L=20, C=0.05, A=20, w=20, p=0):
+        self.R = R
+        self.L = L
+        self.C = C
+        self.A = A
+        self.w = w
+        self.p = p
+        self.t = None
+        self.X = None
 
-    #region methods
+    # Define the ODE system for the circuit
     def ode_system(self, t, X):
-        """
-        this is the odeSystem callback I'm using for solve_ivp().
-        :param X: the current values of the state variables
-        :param t: the current time
-        :return: list of derivatives of state variables
-        """
-        pass
+        i1, i2, vc = X
+        v_t = self.A * sin(self.w * t + self.p)
+        common_term = (v_t - self.R * (i1 - i2)) / self.L
+        di1_dt = common_term
+        di2_dt = common_term - i2 / (self.R * self.C)
+        dvc_dt = -i2 / self.C
+        return [di1_dt, di2_dt, dvc_dt]
 
+    # Simulate the circuit over a specified time period
     def simulate(self, t=10, pts=500):
-        """
-        For simulating transient behavior of circuit.
-        :param: time over which to carry out the simulation in seconds
-        :param pts: number of points in the simulation
-        :return: nothing, just store I
-        """
-        pass
+        time = np.linspace(0, t, pts)
+        X0 = [0, 0, 0]
+        solution = solve_ivp(self.ode_system, (0, t), X0, t_eval=time, method='RK45')
+        self.t = solution.t
+        self.X = solution.y
 
-    def doPlot(self, ax=None):
-        """
-        Re-written on 4/21/2022 to adapt to plotting on GUI if ax is not None
-        :param args: contains ((R, list of time values, and results of solve_ivp))
-        :param ax:
-        :return:
-        """
-        if ax == None:
-            ax = plt.subplot()
-            QTPlotting = False  # actually, we are just using CLI and showing the plot
-        else:
-            QTPlotting = True
+    # Plot the results
+    def doPlot(self):
+        fig, ax = plt.subplots()
 
-        #JES MISSING CODE for making the plot
+        i1 = self.X[0]
+        i2 = self.X[1]
+        vc = self.X[2]
 
-        if not QTPlotting:
-            plt.show()
-    #endregion
+        # Plot currents
+        ax.plot(self.t, i1, 'k-', label=r'$i_1(t)$')
+        ax.plot(self.t, i2, 'k--', label=r'$i_2(t)$')
 
-#endregion
-# region function definitions
+        ax.set_xlim(min(self.t), max(self.t))
+        ax.set_ylim(min(i1.min(), i2.min()) - 0.01, max(i1.max(), i2.max()) + 0.01)
+        ax.set_xlabel("t (s)")
+        ax.set_ylabel(r"$i_1, i_2$ (A)")
+        ax.grid(True, linestyle='--', linewidth=0.5)
 
-def main():
-    """
-    For solving problem 2 on exam.
-    :return:
-    """
-    goAgain = True
-    Circuit = circuit(R=20, L=20, C=0.05, A=20,w=20,p=0)  # create a circuit object with default values
-    while goAgain:
-        #JES MISSING CODE for soliciting user input.
-        Circuit.simulate(t=10, pts=500)
-        Circuit.doPlot()
-        #JES MISSING CODE for soliciting user input.
-    pass
-# endregion
+        # Plot capacitor voltage on a secondary y-axis
+        ax2 = ax.twinx()
+        ax2.plot(self.t, vc, 'k:', label=r'$v_C(t)$')
+        ax2.set_ylim(vc.min() - 0.01, vc.max() + 0.01)
+        ax2.set_ylabel(r"$v_C(t)$ (V)")
 
-# region function calls
-if __name__ ==  "__main__":
-    main()
-# endregion
+        # Add legends
+        lines1, labels1 = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+
+        plt.show()
+
+# Create circuit instance with default parameters and simulate
+CircuitObj = circuit()
+CircuitObj.simulate(t=10, pts=500)
+CircuitObj.doPlot()
